@@ -1,0 +1,25 @@
+# F1 Data Analyst Requirements
+# Install with: pip install -r requirements.txt
+
+# Core Framework
+streamlit>=1.28.0
+
+# F1 Data & API
+fastf1>=3.0.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Visualization
+plotly>=5.17.0
+
+# DateTime & Timezone
+pytz>=2023.3
+
+# Additional Dependencies (installed with above packages)
+# - requests
+# - python-dateutil
+# - matplotlib
+# - scipy
+
