@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formula 1 Data Analyst</title>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=8">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="config.js"></script>
+    <script src="plot_track_circuit.js"></script>
+    <script src="theme-toggle.js"></script>
+</head>
+
+<body>
+    <!-- CRT / HUD Overlay Layer -->
+    <div class="hud-overlay"></div>
+    
+    <!-- CoD Boot Screen Overlay -->
+    <div id="boot-screen">
+        <div class="boot-content">
+            <div class="boot-logo">F1</div>
+            <div class="boot-lines">
+                <div class="boot-line" style="animation-delay:0.1s">INITIALIZING TACTICAL SYSTEMS...</div>
+                <div class="boot-line" style="animation-delay:0.5s">LOADING F1 INTELLIGENCE DATABASE...</div>
+                <div class="boot-line" style="animation-delay:0.9s">ESTABLISHING SECURE CONNECTION...</div>
+                <div class="boot-line" style="animation-delay:1.3s">CALIBRATING GLOBAL RADAR...</div>
+                <div class="boot-line boot-line-ok" style="animation-delay:1.8s">ALL SYSTEMS NOMINAL. WELCOME, COMMANDER.</div>
+            </div>
+            <div class="boot-bar-wrap"><div class="boot-bar"></div></div>
+        </div>
+    </div>
+    <!-- Classified status bar -->
+    <div class="mil-statusbar">
+        <div class="mil-statusbar-left">
+            <span class="mil-blink">|</span>
+            <span>SYS_STATUS: <span class="mil-green">ONLINE</span></span>
+            <span class="mil-sep">|</span>
+            <span>UNIT: <span class="mil-green">F1-ALPHA</span></span>
+            <span class="mil-sep">|</span>
+            <span>NET: <span class="mil-green">SECURE</span></span>
+            <span class="mil-sep">|</span>
+            <span>DATA_FEED: <span class="mil-green">LIVE</span></span>
+        </div>
+        <div class="mil-statusbar-right">
+            <span id="mil-clock">--:--:-- UTC</span>
+            <span class="mil-sep">|</span>
+            <span class="mil-classified">CLASSIFIED — AUTHORIZED PERSONNEL ONLY</span>
+        </div>
+    </div>
+
+    <div id="app">
+        <!-- Tactical Header -->
+        <header class="mil-header">
+            <div class="mil-header-left">
+                <div class="mil-logo-block">
+                    <div class="mil-logo-ring"></div>
+                    <div class="mil-logo-ring mil-logo-ring-2"></div>
+                    <span class="mil-logo-icon">F1</span>
+                </div>
+                <div class="mil-title-block">
+                    <div class="mil-pre-title">// FORMULA ONE INTELLIGENCE UNIT //</div>
+                    <h1 class="header-title">FORMULA 1</h1>
+                    <div class="mil-sub-title">RACE ANALYTICS ▸ GLOBAL DEPLOYMENT ▸ LIVE TELEMETRY</div>
+                </div>
+            </div>
+            <div class="mil-header-right">
+                <div class="mil-badge">
+                    <div class="mil-badge-label">CLEARANCE</div>
+                    <div class="mil-badge-value">LEVEL 5</div>
+                </div>
+                <div class="mil-badge">
+                    <div class="mil-badge-label">UNIT</div>
+                    <div class="mil-badge-value">F1-ALPHA</div>
+                </div>
+                <button id="theme-toggle" class="theme-toggle-btn" title="Toggle theme">
+                    <span class="theme-icon">◐</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Mission Control Row -->
+        <div class="top-row" style="display: flex; gap: 20px; margin-bottom: 20px;">
+            <div class="left-panel" style="flex: 1;">
+                <div class="card controls-card" style="margin-bottom: 20px;">
+                    <div class="mil-section-label">MISSION PARAMETERS</div>
+
+                    <div class="control-group" style="display: flex; margin-bottom: 15px; align-items: center;">
+                        <label class="mil-ctrl-label">YEAR</label>
+                        <select id="year-select" class="mil-select">
+                            <option value="" disabled selected>SELECT YEAR</option>
+                            <option value="2025">2025</option>
+                            <option value="2024">2024</option>
+                            <option value="2023">2023</option>
+                            <option value="2022">2022</option>
+                            <option value="2021">2021</option>
+                            <option value="2020">2020</option>
+                            <option value="2019">2019</option>
+                            <option value="2018">2018</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group" style="display: flex; margin-bottom: 15px; align-items: center;">
+                        <label class="mil-ctrl-label">TARGET</label>
+                        <select id="race-select" disabled class="mil-select"></select>
+                    </div>
+
+                    <div class="control-group" id="session-row" style="display: flex; margin-bottom: 15px; align-items: flex-start;">
+                        <label class="mil-ctrl-label">SESSION</label>
+                        <div id="session-pill-group" class="pill-group" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="pill pill-session" disabled style="opacity: 0.5; cursor: not-allowed;">Sprint Qualifying</button>
+                            <button class="pill pill-session" disabled style="opacity: 0.5; cursor: not-allowed;">Sprint</button>
+                            <button class="pill pill-session" disabled style="opacity: 0.5; cursor: not-allowed;">Qualifying</button>
+                            <button class="pill pill-session" disabled style="opacity: 0.5; cursor: not-allowed;">Race</button>
+                        </div>
+                    </div>
+
+                    <div class="control-group load-group" id="load-row" style="display: flex; align-items: center; gap: 15px;">
+                        <button id="load-data-btn" class="btn-primary mil-deploy-btn" disabled>
+                            <span class="mil-btn-prefix">▶</span>
+                            <span class="btn-text">DEPLOY INTEL</span>
+                        </button>
+                        <div class="f1-car-loading" style="display: none; position: relative; margin-left: 10px;">
+                            <div class="f1-car">
+                                <div class="car-body"></div>
+                                <div class="car-wheel wheel-front"></div>
+                                <div class="car-wheel wheel-back"></div>
+                                <div class="car-wake"></div>
+                            </div>
+                        </div>
+                        <div id="loaded-session-label" class="status-label" style="color: var(--success); font-size: 15px;"></div>
+                    </div>
+                </div>
+
+                <div class="card drivers-card">
+                    <div class="mil-section-label">⬛ ASSET ROSTER</div>
+                    <p class="subtitle" style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px; letter-spacing: 1px;">SELECT ASSETS TO MONITOR // NULL = ALL UNITS ACTIVE</p>
+                    <div id="driver-pills" class="driver-pills-container" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+                </div>
+            </div>
+
+            <div class="right-panel" style="flex: 1.2;">
+                <div class="card map-card" style="height: 100%;">
+                    <div class="mil-section-label">⬛ CIRCUIT RECON</div>
+                    <div class="map-layout" style="display: flex; gap: 20px;">
+                        <div class="map-visual" style="flex: 2; position: relative;">
+                            <span class="track-empty" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--text-muted);">AWAITING DEPLOYMENT...</span>
+                            <canvas id="track-canvas" style="width: 100%; border-radius: 8px;"></canvas>
+                        </div>
+                        <div class="map-stats mil-stat-panel" style="flex: 1; font-size: 15px;">
+                            <div class="mil-stat-row"><span class="mil-stat-key">LOCATION</span><strong id="info-location">—</strong></div>
+                            <div class="mil-stat-row"><span class="mil-stat-key">COUNTRY</span><strong id="info-country">—</strong></div>
+                            <div class="mil-stat-row"><span class="mil-stat-key">LENGTH</span><strong id="info-length">—</strong></div>
+                            <div class="mil-stat-row"><span class="mil-stat-key">CORNERS</span><strong id="info-corners">—</strong></div>
+                            <div class="mil-stat-row"><span class="mil-stat-key">ELEVATION</span><strong id="info-elevation">—</strong></div>
+                            <div class="mil-stat-row"><span class="mil-stat-key">SEA LEVEL</span><strong id="info-sea-level">—</strong></div>
+                            <div class="mil-stat-row"><span class="mil-stat-key">LAPS</span><strong id="info-race">—</strong></div>
+                            <div class="mil-stat-row"><span class="mil-stat-key">RACE DIST.</span><strong id="info-race-length">—</strong></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Global Strike Map -->
+        <div class="card plot-card world-map-card" style="margin-bottom: 20px;">
+            <div class="mil-section-label">⬛ GLOBAL STRIKE MAP</div>
+            <p class="subtitle" style="color: var(--text-muted); font-size: 13px; margin-bottom: 12px; letter-spacing: 1px;">TRACKING F1 GRID DEPLOYMENT WORLDWIDE // LIVE SIGNAL MATRIX</p>
+            <div class="mil-map-hint-row">
+                <span class="mil-hint-chip">SCROLL = ZOOM</span>
+                <span class="mil-hint-chip" id="mil-zoom-readout">ZOOM: 100%</span>
+            </div>
+            <div class="world-map-wrap" style="height: 340px; position: relative;">
+                <!-- Radar Scan Overlay triggered during fetch (Beam only, text removed) -->
+                <div class="map-radar-overlay">
+                    <div class="radar-beam"></div>
+                </div>
+                <svg id="world-map-svg" style="width: 100%; height: 100%;"></svg>
+            </div>
+        </div>
+
+        <!-- Analytics Modules -->
+        <div class="plots-column" style="display: flex; flex-direction: column; gap: 20px;">
+            <div class="card plot-card telemetry-card">
+                <div class="plot-header-flex" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <div class="mil-section-label">⬛ TELEMETRY HEAD-TO-HEAD</div>
+                        <p class="subtitle" style="color: var(--text-muted); font-size: 11px; margin-bottom: 10px; letter-spacing: 1px;">DIRECT COMPARISON OF FASTEST LAPS // SPEED, THROTTLE, BRAKE, GEAR</p>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="tel-driver1" class="mil-select" style="width: 100px;">
+                            <option value="">DRV 1</option>
+                        </select>
+                        <select id="tel-driver2" class="mil-select" style="width: 100px;">
+                            <option value="">DRV 2</option>
+                        </select>
+                        <button id="pull-telemetry-btn" class="btn-primary mil-deploy-btn">PULL TELEMETRY</button>
+                    </div>
+                </div>
+                <div id="telemetry-loading" style="display: none; color: #39ff14; font-size: 12px; margin-bottom: 10px; font-family: 'Share Tech Mono', monospace;">FETCHING TELEMETRY...</div>
+                <svg id="telemetry-svg" width="1600" height="650" style="width: 100%; min-height: 500px;"></svg>
+            </div>
+
+            <div class="card plot-card">
+                <div class="mil-section-label">⬛ RACE PACE INTEL</div>
+                <p class="subtitle" style="color: var(--text-muted); font-size: 13px; margin-bottom: 10px; letter-spacing: 1px;">CLEAN-LAP PACE COMPARISON // SORTED BY MEAN LAP TIME</p>
+                <svg id="boxplot-svg" width="1600" height="450"></svg>
+            </div>
+
+            <div class="card plot-card">
+                <div class="plot-header-flex" style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <div class="mil-section-label">⬛ LAP TIME EVOLUTION</div>
+                        <p class="subtitle" style="color: var(--text-muted); font-size: 13px; margin-bottom: 10px; letter-spacing: 1px;">LAP-BY-LAP PACE TRACE // TYRE COMPOUND OVERLAY</p>
+                    </div>
+                    <div id="smooth-toggle" class="smooth-controls mil-seg-group">
+                        <button class="seg-btn active" data-smooth="1">RAW</button>
+                        <button class="seg-btn" data-smooth="11">LIGHT</button>
+                        <button class="seg-btn" data-smooth="21">MED</button>
+                        <button class="seg-btn" data-smooth="31">HIGH</button>
+                    </div>
+                </div>
+                <svg id="laptime-svg" width="1600" height="500"></svg>
+            </div>
+
+            <div class="card plot-card">
+                <div class="mil-section-label">⬛ POSITION TIMELINE</div>
+                <svg id="position-svg" width="1600" height="500"></svg>
+            </div>
+
+            <div class="card plot-card">
+                <div class="mil-section-label">⬛ LAP TIME DISTRIBUTION</div>
+                <svg id="violin-svg" width="1600" height="450"></svg>
+            </div>
+
+            <div class="card plot-card">
+                <div class="mil-section-label">⬛ SECTOR PERFORMANCE MATRIX</div>
+                <svg id="avg-sectors-svg" width="1600" height="400"></svg>
+            </div>
+        </div>
+    </div>
+
+    <div id="tooltip" class="d3-tooltip" style="position: absolute; pointer-events: none; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-subtle); padding: 10px; border-radius: 4px; font-size: 15px; opacity: 0; z-index: 5000; box-shadow: 0 4px 16px rgba(0,0,0,0.4); font-family: 'Share Tech Mono', monospace; transition: opacity 0.15s;"></div>
+    <div id="avg-sectors-tooltip" class="d3-tooltip" style="position: absolute; pointer-events: none; background: var(--bg-card); color: var(--text-main); border: 1px solid var(--border-subtle); padding: 10px; border-radius: 4px; font-size: 15px; opacity: 0; z-index: 5000; box-shadow: 0 4px 16px rgba(0,0,0,0.4); font-family: 'Share Tech Mono', monospace; transition: opacity 0.15s;"></div>
+
+    <!-- Quarky AI Chat -->
+    <div id="chat-widget" class="chat-widget collapsed">
+        <div class="chat-header" id="chat-header">
+            <div class="chat-title">
+                <strong>Quarky</strong>
+            </div>
+            <div class="chat-header-controls">
+                <span class="mil-online-dot"></span>
+                <button class="chat-toggle-btn" id="chat-toggle-btn">▲</button>
+            </div>
+        </div>
+        <div class="chat-body" id="chat-body">
+            <div class="chat-messages" id="chat-messages">
+                <div class="message assistant">
+                    <div class="msg-content">QUACK! // F1 Tactical AI online. Awaiting your command, Commander.</div>
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chat-input" placeholder="ENTER COMMAND..." autocomplete="off" />
+                <button id="chat-send-btn">▶</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Live UTC clock for status bar
+        function updateClock() {
+            const now = new Date();
+            // Vietnam timezone = UTC+7
+            const vn = new Date(now.getTime() + 7 * 3600 * 1000);
+            const h = String(vn.getUTCHours()).padStart(2,'0');
+            const m = String(vn.getUTCMinutes()).padStart(2,'0');
+            const s = String(vn.getUTCSeconds()).padStart(2,'0');
+            const el = document.getElementById('mil-clock');
+            if (el) el.textContent = h + ':' + m + ':' + s + ' ICT';
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Hook for globe zoom readout
+        window.updateZoomReadout = function(pct) {
+            const el = document.getElementById('mil-zoom-readout');
+            if (el) el.textContent = 'ZOOM: ' + Math.round(pct) + '%';
+        };
+    </script>
+
+    <!-- Tactical HUD Fixed Panels Removed -->
+
+    <script type="module" src="main.js?v=23"></script>
+    <script type="module" src="chat.js?v=6"></script>
+</body>
+</html>
